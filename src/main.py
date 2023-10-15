@@ -6,7 +6,9 @@ from pandas import read_html
 
 api_key = "ayms1wvxify8f526b241pqjpqqdbfp"
 user_key = "uowz7obrxytt94tai7zyt1wpzd3vw6"
-daily_url = "https://www.espn.com/nba/scoreboard/_/date/20230404" # "https://www.espn.com/nba/scoreboard"
+daily_url = "https://www.espn.com/nba/scoreboard"
+
+conn = http.client.HTTPSConnection("api.pushover.net:443")
 
 # Translate abbreviated name into full player name
 def get_full_name(abbreviated_name, game_link):
@@ -51,9 +53,8 @@ def get_players(game_id):
         players_2.append(row[0])
 
     process_team(stats_1, players_1, url)
-    # process_team(stats_2, players_2, url)
+    process_team(stats_2, players_2, url)
 
-# TODO: Send push notification if stats are good enough
 def process_team(stats, players, game_link):
     i = 0
     for index, row in stats.iterrows():
@@ -66,21 +67,26 @@ def process_team(stats, players, game_link):
         if players[i] == "bench" or players[i] == "starters":
           i += 1
           continue
-        print("PLAYER: " + extract_player_name_from_url(get_full_name(remove_position_suffix(players[i]), game_link)))
-        print("min: " + str(row[0]))
-        print("fg: " + str(row[1]))
-        print("3pt: " + str(row[2]))
-        print("ft: " + str(row[3]))
-        print("oreb: " + str(row[4]))
-        print("dreb: " + str(row[5]))
-        print("reb: " + str(row[6]))
-        print("ast: " + str(row[7]))
-        print("stl: " + str(row[8]))
-        print("blt: " + str(row[9]))
-        print("to: " + str(row[10]))
-        print("pf: " + str(row[11]))
-        print("+-: " + str(row[12]))
-        print("pts: " + str(row[13]))
+        player_name = extract_player_name_from_url(get_full_name(remove_position_suffix(players[i]), game_link))
+        try:
+            minutes = str(row[0])
+            fg = str(row[1])
+            three_pt = str(row[2])
+            ft = str(row[3])
+            oreb = str(row[4])
+            dreb = str(row[5])
+            reb = str(row[6])
+            ast = str(row[7])
+            stl = str(row[8])
+            blk = str(row[9])
+            to = str(row[10])
+            pf = str(row[11])
+            plus_minus = str(row[12])
+            pts = str(row[13])
+            if int(pts) > 25:
+                send_notification(player_name + " has accumulated " + pts + " points!")
+        except ValueError:
+            pass
         i += 1
 
 def remove_position_suffix(input_string):
@@ -108,15 +114,13 @@ def extract_player_name_from_url(url):
 
     return None  # Return None if the URL doesn't match the expected format
 
+def send_notification(message):
+    conn.request("POST", "/1/messages.json",
+                 urllib.parse.urlencode({
+                     "token": api_key,
+                     "user": user_key,
+                     "message": message,
+                 }), {"Content-type": "application/x-www-form-urlencoded"})
+    conn.getresponse()
+
 get_games(daily_url)
-exit(1)
-
-conn = http.client.HTTPSConnection("api.pushover.net:443")
-
-conn.request("POST", "/1/messages.json",
-             urllib.parse.urlencode({
-                 "token": api_key,
-                 "user": user_key,
-                 "message": "it's fucking lit bro",
-             }), {"Content-type": "application/x-www-form-urlencoded"})
-conn.getresponse()
